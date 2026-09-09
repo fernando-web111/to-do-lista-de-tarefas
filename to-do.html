@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lista de Tarefas</title>
+  <style>
+    /* ============================================================
+       RESET E VARIÁVEIS
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0d14;
+      --card:    #16161f;
+      --border:  #252535;
+      --text:    #f0f0f8;
+      --muted:   #7070a0;
+      --accent:  #7c5cfc;
+      --accent2: #b490ff;
+      --ok:      #4ade80;
+      --danger:  #f87171;
+      --tr: 0.2s ease;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1rem 4rem;
+    }
+
+    /* ============================================================
+       CABEÇALHO DO APP
+    ============================================================ */
+    .app-header {
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 2rem;
+    }
+
+    .app-titulo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.25rem;
+    }
+    .app-titulo span { color: var(--accent); }
+
+    .app-sub { font-size: 0.88rem; color: var(--muted); }
+
+    /* ============================================================
+       CONTADORES
+    ============================================================ */
+    .contadores {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .contador {
+      flex: 1;
+      min-width: 80px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.8rem 1rem;
+      text-align: center;
+    }
+
+    .contador-num  { font-size: 1.6rem; font-weight: 800; display: block; line-height: 1; }
+    .contador-rot  { font-size: 0.7rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.2rem; display: block; }
+
+    .contador.total .contador-num     { color: var(--text); }
+    .contador.pendentes .contador-num { color: var(--accent2); }
+    .contador.feitas .contador-num    { color: var(--ok); }
+
+    /* ============================================================
+       FORMULÁRIO DE ADIÇÃO
+    ============================================================ */
+    .form-add {
+      display: flex;
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 1rem;
+    }
+
+    .input-tarefa {
+      flex: 1;
+      padding: 0.85rem 1.1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color var(--tr);
+    }
+    .input-tarefa:focus        { border-color: var(--accent); }
+    .input-tarefa::placeholder { color: var(--muted); }
+
+    .btn-add {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity var(--tr), transform 0.1s;
+      flex-shrink: 0;
+    }
+    .btn-add:hover  { opacity: 0.85; }
+    .btn-add:active { transform: scale(0.92); }
+
+    /* ============================================================
+       FILTROS
+    ============================================================ */
+    .filtros {
+      display: flex;
+      gap: 0.4rem;
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 1.1rem;
+    }
+
+    .btn-filtro {
+      padding: 0.38rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all var(--tr);
+    }
+    .btn-filtro.ativo           { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-filtro:hover:not(.ativo) { border-color: var(--accent); color: var(--text); }
+
+    /* ============================================================
+       LISTA DE TAREFAS
+    ============================================================ */
+    .lista {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 50px;
+    }
+
+    /* Item individual */
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.9rem 1rem;
+      transition: border-color var(--tr), opacity var(--tr);
+      animation: entrar 0.22s ease;
+    }
+
+    @keyframes entrar {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .item:hover { border-color: #3a3a5a; }
+    .item.feita { opacity: 0.5; }
+    .item.feita .item-texto { text-decoration: line-through; color: var(--muted); }
+
+    /* Botão de check circular */
+    .btn-check {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: #fff;
+      flex-shrink: 0;
+      transition: all var(--tr);
+    }
+    .btn-check:hover            { border-color: var(--ok); }
+    .item.feita .btn-check      { background: var(--ok); border-color: var(--ok); }
+
+    /* Texto da tarefa */
+    .item-texto {
+      flex: 1;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    /* Input de edição inline */
+    .item-edit {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--accent);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      padding: 0.1rem 0;
+    }
+
+    /* Botões de ação (editar / deletar) */
+    .btn-acao {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.25rem 0.4rem;
+      border-radius: 8px;
+      transition: background var(--tr);
+      flex-shrink: 0;
+      opacity: 0.5;
+    }
+    .btn-acao:hover          { opacity: 1; }
+    .btn-editar:hover        { background: rgba(124,92,252,0.15); }
+    .btn-deletar:hover       { background: rgba(248,113,113,0.15); }
+
+    /* Estado vazio */
+    .vazio {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+      padding: 2.5rem 0;
+    }
+    .vazio-emoji { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
+
+    /* ============================================================
+       RODAPÉ DA LISTA
+    ============================================================ */
+    .lista-rodape {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.75rem;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .btn-limpar {
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity var(--tr);
+    }
+    .btn-limpar:hover { opacity: 1; }
+
+    /* ============================================================
+       VOLTAR
+    ============================================================ */
+    .voltar {
+      margin-top: 2rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color var(--tr);
+    }
+    .voltar:hover { color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <div class="app-header">
+    <h1 class="app-titulo">Lista de Tarefas <span>To-Do</span> 📋</h1>
+    <p class="app-sub">Tarefas salvas automaticamente no navegador.</p>
+  </div>
+
+  <!-- Contadores -->
+  <div class="contadores">
+    <div class="contador total">
+      <span class="contador-num" id="cTotal">0</span>
+      <span class="contador-rot">Total</span>
+    </div>
+    <div class="contador pendentes">
+      <span class="contador-num" id="cPendentes">0</span>
+      <span class="contador-rot">Pendentes</span>
+    </div>
+    <div class="contador feitas">
+      <span class="contador-num" id="cFeitas">0</span>
+      <span class="contador-rot">Concluídas</span>
+    </div>
+  </div>
+
+  <!-- Formulário de adição -->
+  <div class="form-add">
+    <input type="text" class="input-tarefa" id="inputTarefa"
+           placeholder="Digite uma nova tarefa e pressione Enter…"
+           maxlength="120" autocomplete="off"/>
+    <button class="btn-add" id="btnAdd" aria-label="Adicionar">+</button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros">
+    <button class="btn-filtro ativo" data-f="todas">Todas</button>
+    <button class="btn-filtro"       data-f="pendentes">Pendentes</button>
+    <button class="btn-filtro"       data-f="feitas">Concluídas</button>
+  </div>
+
+  <!-- Lista -->
+  <ul class="lista" id="lista"></ul>
+
+  <!-- Limpar concluídas -->
+  <div class="lista-rodape">
+    <button class="btn-limpar" id="btnLimpar">🗑 Limpar concluídas</button>
+  </div>
+
+  <!-- Voltar -->
+  <a href="portfolio.html" class="voltar">← Voltar ao portfólio</a>
+
+
+  <!-- ===== JAVASCRIPT DO TO-DO ===== -->
+  <script>
+    /* ---- Estado ---- */
+    /* Carrega tarefas salvas ou começa com array vazio */
+    let tarefas  = JSON.parse(localStorage.getItem('tarefas_todo') || '[]');
+    let filtro   = 'todas';
+
+    /* ---- Elementos do DOM ---- */
+    const inputTarefa = document.getElementById('inputTarefa');
+    const btnAdd      = document.getElementById('btnAdd');
+    const btnLimpar   = document.getElementById('btnLimpar');
+    const lista       = document.getElementById('lista');
+    const cTotal      = document.getElementById('cTotal');
+    const cPendentes  = document.getElementById('cPendentes');
+    const cFeitas     = document.getElementById('cFeitas');
+
+    /* ---- Salva no LocalStorage ---- */
+    function salvar() {
+      localStorage.setItem('tarefas_todo', JSON.stringify(tarefas));
+    }
+
+    /* ---- Gera ID único ---- */
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+    /* ---- Escapa HTML para evitar XSS ---- */
+    function esc(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    /* ---- Atualiza contadores de resumo ---- */
+    function atualizarContadores() {
+      const total   = tarefas.length;
+      const feitas  = tarefas.filter(t => t.feita).length;
+      cTotal.textContent    = total;
+      cPendentes.textContent = total - feitas;
+      cFeitas.textContent   = feitas;
+    }
+
+    /* ---- Renderiza a lista conforme o filtro ---- */
+    function renderizar() {
+      lista.innerHTML = '';
+      atualizarContadores();
+
+      /* Filtra quais tarefas exibir */
+      const visiveis = tarefas.filter(function(t) {
+        if (filtro === 'pendentes') return !t.feita;
+        if (filtro === 'feitas')    return  t.feita;
+        return true;
+      });
+
+      /* Estado vazio */
+      if (visiveis.length === 0) {
+        lista.innerHTML = '<li class="vazio"><span class="vazio-emoji">🎉</span>Nada aqui!</li>';
+        return;
+      }
+
+      /* Cria um <li> para cada tarefa */
+      visiveis.forEach(function(tarefa) {
+        const li = document.createElement('li');
+        li.className = 'item' + (tarefa.feita ? ' feita' : '');
+        li.dataset.id = tarefa.id;
+
+        li.innerHTML = `
+          <button class="btn-check" aria-label="Concluir">${tarefa.feita ? '✓' : ''}</button>
+          <span class="item-texto">${esc(tarefa.texto)}</span>
+          <button class="btn-acao btn-editar"  aria-label="Editar">✏️</button>
+          <button class="btn-acao btn-deletar" aria-label="Deletar">🗑</button>
+        `;
+
+        /* Check: marcar/desmarcar como feita */
+        li.querySelector('.btn-check').addEventListener('click', function() {
+          const idx = tarefas.findIndex(function(t) { return t.id === tarefa.id; });
+          tarefas[idx].feita = !tarefas[idx].feita;
+          salvar();
+          renderizar();
+        });
+
+        /* Editar: troca o <span> por um <input> inline */
+        li.querySelector('.btn-editar').addEventListener('click', function() {
+          const span  = li.querySelector('.item-texto');
+          const input = document.createElement('input');
+          input.type      = 'text';
+          input.className = 'item-edit';
+          input.value     = tarefa.texto;
+          input.maxLength = 120;
+          span.replaceWith(input);
+          input.focus();
+
+          /* Salva ao perder o foco ou pressionar Enter */
+          function confirmarEdicao() {
+            const novo = input.value.trim();
+            if (novo) {
+              const idx = tarefas.findIndex(function(t) { return t.id === tarefa.id; });
+              tarefas[idx].texto = novo;
+              salvar();
+            }
+            renderizar();
+          }
+          input.addEventListener('blur',    confirmarEdicao);
+          input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter')  input.blur();
+            if (e.key === 'Escape') renderizar();
+          });
+        });
+
+        /* Deletar */
+        li.querySelector('.btn-deletar').addEventListener('click', function() {
+          tarefas = tarefas.filter(function(t) { return t.id !== tarefa.id; });
+          salvar();
+          renderizar();
+        });
+
+        lista.appendChild(li);
+      });
+    }
+
+    /* ---- Adicionar nova tarefa ---- */
+    function adicionarTarefa() {
+      const texto = inputTarefa.value.trim();
+      if (!texto) { inputTarefa.focus(); return; }
+      tarefas.unshift({ id: uid(), texto: texto, feita: false });
+      inputTarefa.value = '';
+      salvar();
+      renderizar();
+      inputTarefa.focus();
+    }
+
+    btnAdd.addEventListener('click', adicionarTarefa);
+    inputTarefa.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') adicionarTarefa();
+    });
+
+    /* ---- Filtros ---- */
+    document.querySelectorAll('.btn-filtro').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.btn-filtro').forEach(function(b) { b.classList.remove('ativo'); });
+        this.classList.add('ativo');
+        filtro = this.dataset.f;
+        renderizar();
+      });
+    });
+
+    /* ---- Limpar concluídas ---- */
+    btnLimpar.addEventListener('click', function() {
+      tarefas = tarefas.filter(function(t) { return !t.feita; });
+      salvar();
+      renderizar();
+    });
+
+    /* ---- Renderiza ao abrir a página ---- */
+    renderizar();
+  </script>
+</body>
+</html>
